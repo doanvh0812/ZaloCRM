@@ -43,6 +43,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '@/api/index';
+import { useAuthStore } from '@/stores/auth';
 
 interface Notification {
   id: string;
@@ -54,11 +55,19 @@ interface Notification {
 
 const notifications = ref<Notification[]>([]);
 const router = useRouter();
-let interval: ReturnType<typeof setInterval>;
+const authStore = useAuthStore();
+let interval: ReturnType<typeof setInterval> | undefined;
 
 async function fetchNotifications() {
+  if (!authStore.token) {
+    notifications.value = [];
+    return;
+  }
+
   try {
-    const res = await api.get('/notifications');
+    const res = await api.get('/notifications', {
+      headers: { 'X-Skip-Auth-Redirect': 'true' },
+    });
     notifications.value = res.data.notifications || [];
   } catch {
     // silently ignore fetch errors
@@ -77,5 +86,7 @@ onMounted(() => {
   interval = setInterval(fetchNotifications, 60000);
 });
 
-onUnmounted(() => clearInterval(interval));
+onUnmounted(() => {
+  if (interval) clearInterval(interval);
+});
 </script>

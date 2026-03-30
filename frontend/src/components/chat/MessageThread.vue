@@ -57,6 +57,9 @@
                 </v-btn>
               </div>
               <!-- Sticker/Video/Voice/GIF -->
+              <div v-else-if="getStickerUrl(msg)">
+                <img :src="getStickerUrl(msg)!" alt="Sticker" class="chat-sticker" />
+              </div>
               <div v-else-if="msg.contentType === 'sticker'">🏷️ Sticker</div>
               <div v-else-if="msg.contentType === 'video'">🎥 Video</div>
               <div v-else-if="msg.contentType === 'voice'">🎤 Tin nhắn thoại</div>
@@ -89,6 +92,9 @@
 
       <!-- Input -->
       <div class="pa-2 d-flex align-end chat-input-area">
+        <v-btn icon variant="text" color="warning" class="mr-2 mb-1" :disabled="sending" @click="openStickerPicker">
+          <v-icon>mdi-sticker-emoji</v-icon>
+        </v-btn>
         <v-textarea v-model="inputText" placeholder="Nhập tin nhắn..." variant="solo-filled" density="compact" hide-details auto-grow rows="1" max-rows="3" @keydown.enter.exact.prevent="handleSend" class="flex-grow-1 mr-2" />
         <v-btn icon color="primary" :loading="sending" :disabled="!inputText.trim()" @click="handleSend"><v-icon>mdi-send</v-icon></v-btn>
       </div>
@@ -104,12 +110,69 @@
 
     <!-- Sync snackbar -->
     <v-snackbar v-model="syncSnack.show" :color="syncSnack.color" timeout="3000">{{ syncSnack.text }}</v-snackbar>
+
+    <v-dialog v-model="showStickerDialog" max-width="720">
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <span>Chọn sticker</span>
+          <v-spacer />
+          <v-btn icon variant="text" @click="showStickerDialog = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+        <v-card-text>
+          <div class="d-flex align-center mb-4">
+            <v-text-field
+              v-model="stickerKeyword"
+              placeholder="Tìm sticker, ví dụ: hello"
+              prepend-inner-icon="mdi-magnify"
+              variant="solo-filled"
+              density="compact"
+              hide-details
+              class="flex-grow-1 mr-2"
+              @keydown.enter.prevent="handleStickerSearch"
+            />
+            <v-btn color="primary" :loading="loadingStickers" @click="handleStickerSearch">Tìm</v-btn>
+          </div>
+
+          <v-alert v-if="stickerError" type="error" density="compact" variant="tonal" class="mb-3">
+            {{ stickerError }}
+          </v-alert>
+
+          <div v-if="loadingStickers" class="py-8">
+            <v-progress-linear indeterminate color="primary" />
+          </div>
+
+          <div v-else-if="stickers.length > 0" class="sticker-grid">
+            <button
+              v-for="sticker in stickers"
+              :key="`${sticker.id}-${sticker.cateId}-${sticker.type}`"
+              type="button"
+              class="sticker-option"
+              @click="handleSelectSticker(sticker)"
+            >
+              <img
+                v-if="getStickerPreviewUrl(sticker)"
+                :src="getStickerPreviewUrl(sticker)!"
+                :alt="sticker.text || 'Sticker'"
+                class="sticker-option-image"
+              />
+              <span v-else class="text-caption">Sticker #{{ sticker.id }}</span>
+            </button>
+          </div>
+
+          <div v-else class="text-center text-grey py-8">
+            {{ stickerKeyword ? 'Không tìm thấy sticker phù hợp' : 'Nhập từ khóa để tìm sticker' }}
+          </div>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, nextTick, computed } from 'vue';
-import type { Conversation, Message } from '@/composables/use-chat';
+import type { Conversation, Message, StickerDetail } from '@/composables/use-chat';
 import { api } from '@/api/index';
 
 const props = defineProps<{
@@ -118,19 +181,26 @@ const props = defineProps<{
   loading: boolean;
   sending: boolean;
   showContactPanel?: boolean;
+  searchStickers: (keyword: string) => Promise<StickerDetail[]>;
 }>();
 
-const emit = defineEmits<{ send: [content: string]; 'toggle-contact-panel': [] }>();
+const emit = defineEmits<{ send: [content: string]; 'send-sticker': [sticker: StickerDetail]; 'toggle-contact-panel': [] }>();
 
 const inputText = ref('');
 const messagesContainer = ref<HTMLElement | null>(null);
 const previewImageUrl = ref('');
 const showImagePreview = computed({ get: () => !!previewImageUrl.value, set: (v) => { if (!v) previewImageUrl.value = ''; } });
 const syncSnack = ref({ show: false, text: '', color: 'success' });
+const showStickerDialog = ref(false);
+const stickerKeyword = ref('');
+const loadingStickers = ref(false);
+const stickers = ref<StickerDetail[]>([]);
+const stickerError = ref('');
 
 function handleSend() { if (!inputText.value.trim()) return; emit('send', inputText.value); inputText.value = ''; }
 function formatMessageTime(d: string) { return new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }); }
 function openFile(url: string) { window.open(url, '_blank'); }
+function openStickerPicker() { showStickerDialog.value = true; if (!stickers.value.length && !stickerKeyword.value) stickerKeyword.value = 'hello'; void handleStickerSearch(); }
 
 /** Extract image URL from JSON content */
 function getImageUrl(msg: Message): string | null {
@@ -147,6 +217,20 @@ function getImageUrl(msg: Message): string | null {
     } catch {}
   }
   return null;
+}
+
+function getStickerUrl(msg: Message): string | null {
+  if (msg.contentType !== 'sticker' || !msg.content) return null;
+  try {
+    const parsed = JSON.parse(msg.content);
+    return parsed.stickerUrl || parsed.stickerSpriteUrl || parsed.uri || null;
+  } catch {
+    return null;
+  }
+}
+
+function getStickerPreviewUrl(sticker: StickerDetail): string | null {
+  return sticker.stickerUrl || sticker.stickerSpriteUrl || sticker.uri || null;
 }
 
 /** Extract file info from JSON content (PDF, docs, etc.) */
@@ -220,6 +304,28 @@ async function syncAppointment(msg: Message) {
   }
 }
 
+async function handleStickerSearch() {
+  if (!stickerKeyword.value.trim()) {
+    stickers.value = [];
+    return;
+  }
+
+  loadingStickers.value = true;
+  stickerError.value = '';
+  try {
+    stickers.value = await props.searchStickers(stickerKeyword.value);
+  } catch (err: any) {
+    stickerError.value = err.response?.data?.error || 'Không tìm được sticker';
+  } finally {
+    loadingStickers.value = false;
+  }
+}
+
+function handleSelectSticker(sticker: StickerDetail) {
+  emit('send-sticker', sticker);
+  showStickerDialog.value = false;
+}
+
 watch(() => props.messages.length, async () => { await nextTick(); if (messagesContainer.value) messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight; });
 </script>
 
@@ -229,4 +335,8 @@ watch(() => props.messages.length, async () => { await nextTick(); if (messagesC
 .file-card { display: flex; align-items: center; padding: 8px 12px; border-radius: 8px; background: rgba(0, 242, 255, 0.05); border: 1px solid rgba(0, 242, 255, 0.1); }
 .chat-image { max-width: 100%; max-height: 300px; border-radius: 12px; cursor: pointer; transition: transform 0.2s; }
 .chat-image:hover { transform: scale(1.02); }
+.chat-sticker { width: 120px; height: 120px; object-fit: contain; }
+.sticker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px; }
+.sticker-option { display: flex; align-items: center; justify-content: center; min-height: 96px; border: 1px solid rgba(0, 242, 255, 0.12); border-radius: 12px; background: rgba(0, 242, 255, 0.04); cursor: pointer; padding: 8px; }
+.sticker-option-image { max-width: 72px; max-height: 72px; object-fit: contain; }
 </style>

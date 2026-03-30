@@ -107,9 +107,8 @@ export function attachZaloListener(ctx: ListenerContext): void {
       }
 
       const rawContent = message.data?.content;
-      const content =
-        typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent || '');
       const contentType = detectContentType(message.data?.msgType, rawContent);
+      const content = await normalizeMessageContent(api, rawContent, contentType);
 
       const result = await handleIncomingMessage({
         accountId,
@@ -157,4 +156,69 @@ export function attachZaloListener(ctx: ListenerContext): void {
   });
 
   listener.start({ retryOnClose: true });
+}
+
+async function normalizeMessageContent(api: any, rawContent: any, contentType: string): Promise<string> {
+  if (contentType !== 'sticker') {
+    return typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent || '');
+  }
+
+  const stickerPayload = parseStickerPayload(rawContent);
+  if (!stickerPayload) {
+    return typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent || '');
+  }
+
+  if (!stickerPayload.stickerUrl && api.getStickersDetail) {
+    try {
+      const details = await api.getStickersDetail(stickerPayload.id);
+      const detail = Array.isArray(details) ? details[0] : details;
+      if (detail) {
+        stickerPayload.text ||= detail.text || '';
+        stickerPayload.uri ||= detail.uri || '';
+        stickerPayload.stickerUrl ||= detail.stickerUrl || '';
+        stickerPayload.stickerSpriteUrl ||= detail.stickerSpriteUrl || '';
+      }
+    } catch (err) {
+      logger.warn('[zalo] getStickersDetail failed:', err);
+    }
+  }
+
+  return JSON.stringify(stickerPayload);
+}
+
+function parseStickerPayload(rawContent: any): {
+  id: number;
+  cateId: number;
+  type: number;
+  text?: string;
+  uri?: string;
+  stickerUrl?: string;
+  stickerSpriteUrl?: string;
+} | null {
+  let parsed = rawContent;
+
+  if (typeof rawContent === 'string') {
+    try {
+      parsed = JSON.parse(rawContent);
+    } catch {
+      return null;
+    }
+  }
+
+  const id = Number(parsed?.id);
+  const cateId = Number(parsed?.cateId);
+  const type = Number(parsed?.type);
+  if (!Number.isFinite(id) || !Number.isFinite(cateId) || !Number.isFinite(type)) {
+    return null;
+  }
+
+  return {
+    id,
+    cateId,
+    type,
+    text: typeof parsed?.text === 'string' ? parsed.text : '',
+    uri: typeof parsed?.uri === 'string' ? parsed.uri : '',
+    stickerUrl: typeof parsed?.stickerUrl === 'string' ? parsed.stickerUrl : '',
+    stickerSpriteUrl: typeof parsed?.stickerSpriteUrl === 'string' ? parsed.stickerSpriteUrl : '',
+  };
 }

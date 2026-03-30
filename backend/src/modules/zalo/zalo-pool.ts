@@ -16,7 +16,14 @@ import { emitWebhook } from '../api/webhook-service.js';
 // zca-js has no reliable ESM type exports — load via CJS interop
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { Zalo } = require('zca-js') as { Zalo: new (opts: { logging: boolean }) => any };
+const { Zalo } = require('zca-js') as {
+  Zalo: new (opts?: { logging?: boolean; selfListen?: boolean; checkUpdate?: boolean }) => any;
+};
+
+function createZaloClient() {
+  // selfListen=true is required so listener receives messages sent from the phone/other devices.
+  return new Zalo({ logging: false, selfListen: true, checkUpdate: false });
+}
 
 interface ZaloCredentials {
   cookie: any;
@@ -47,7 +54,7 @@ class ZaloAccountPool {
 
   // Initiate QR-based login; emits QR events to frontend via Socket.IO
   async loginQR(accountId: string): Promise<void> {
-    const zalo = new Zalo({ logging: false });
+    const zalo = createZaloClient();
     this.instances.set(accountId, { zalo, api: null, status: 'qr_pending', lastActivity: new Date() });
 
     try {
@@ -115,7 +122,7 @@ class ZaloAccountPool {
 
   // Reconnect using previously saved session credentials
   async reconnect(accountId: string, credentials: ZaloCredentials): Promise<void> {
-    const zalo = new Zalo({ logging: false });
+    const zalo = createZaloClient();
     this.instances.set(accountId, { zalo, api: null, status: 'connecting', lastActivity: new Date() });
 
     try {

@@ -21,8 +21,10 @@
       :loading="loadingMsgs"
       :sending="sendingMsg"
       @send="sendMessage"
+      @send-sticker="sendSticker"
       @toggle-contact-panel="showContactPanel = !showContactPanel"
       :show-contact-panel="showContactPanel"
+      :search-stickers="searchStickers"
       style="flex: 1; min-width: 300px;"
     />
 
@@ -49,7 +51,7 @@ import { useChat } from '@/composables/use-chat';
 const {
   conversations, selectedConvId, selectedConv, messages,
   loadingConvs, loadingMsgs, sendingMsg, searchQuery, accountFilter,
-  fetchConversations, selectConversation, sendMessage,
+  fetchConversations, selectConversation, sendMessage, searchStickers, sendSticker,
   initSocket, destroySocket,
 } = useChat();
 

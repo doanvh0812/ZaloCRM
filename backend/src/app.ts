@@ -176,6 +176,8 @@ async function bootstrap() {
         zaloPool.reconnect(account.id, session).catch((err) => {
           logger.warn(`Auto-reconnect failed for account ${account.id}:`, err);
         });
+        // Stagger reconnects to avoid bursting Zalo API rate limits
+        await new Promise((r) => setTimeout(r, 5000));
       }
     }
   } catch (err) {

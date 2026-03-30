@@ -59,20 +59,7 @@ export async function handleIncomingMessage(
     const conversation = await findOrCreateConversation(msg, account.orgId, contactId);
 
     const sentAt = new Date(msg.timestamp);
-    const message = await prisma.message.create({
-      data: {
-        id: randomUUID(),
-        conversationId: conversation.id,
-        zaloMsgId: msg.msgId || null,
-        senderType: msg.isSelf ? 'self' : 'contact',
-        senderUid: msg.senderUid,
-        senderName: msg.senderName || null,
-        content: msg.content || '',
-        contentType: msg.contentType || 'text',
-        attachments: msg.attachments ?? [],
-        sentAt,
-      },
-    });
+    const message = await upsertIncomingMessage(conversation.id, msg, sentAt);
 
     await updateConversationAfterMessage(conversation.id, sentAt, msg.isSelf);
 
@@ -104,6 +91,152 @@ export async function handleIncomingMessage(
     logger.error('[message-handler] handleIncomingMessage error:', err);
     return null;
   }
+}
+
+async function upsertIncomingMessage(
+  conversationId: string,
+  msg: IncomingMessage,
+  sentAt: Date,
+) {
+  const messageData = {
+    conversationId,
+    zaloMsgId: msg.msgId || null,
+    senderType: msg.isSelf ? 'self' : 'contact',
+    senderUid: msg.senderUid,
+    senderName: msg.senderName || null,
+    content: msg.content || '',
+    contentType: msg.contentType || 'text',
+    attachments: msg.attachments ?? [],
+    sentAt,
+  };
+
+  if (msg.msgId) {
+    const existingByZaloMsgId = await prisma.message.findFirst({
+      where: { conversationId, zaloMsgId: msg.msgId },
+    });
+    if (existingByZaloMsgId) {
+      return prisma.message.update({
+        where: { id: existingByZaloMsgId.id },
+        data: messageData,
+      });
+    }
+  }
+
+  if (msg.isSelf) {
+    const duplicateWindowStart = new Date(sentAt.getTime() - 15_000);
+    const duplicateWindowEnd = new Date(sentAt.getTime() + 15_000);
+    const contentType = msg.contentType || 'text';
+    const recentSelfMessage = await prisma.message.findFirst({
+      where: {
+        conversationId,
+        senderType: 'self',
+        contentType,
+        sentAt: { gte: duplicateWindowStart, lte: duplicateWindowEnd },
+        ...(contentType === 'sticker'
+          ? {}
+          : {
+              content: msg.content || '',
+            }),
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (recentSelfMessage && isLikelySameSelfMessage(recentSelfMessage.content, msg.content, contentType)) {
+      return prisma.message.update({
+        where: { id: recentSelfMessage.id },
+        data: {
+          ...messageData,
+          content: mergeMessageContent(recentSelfMessage.content, messageData.content, contentType),
+          zaloMsgId: recentSelfMessage.zaloMsgId || messageData.zaloMsgId,
+        },
+      });
+    }
+  }
+
+  return prisma.message.create({
+    data: {
+      id: randomUUID(),
+      ...messageData,
+    },
+  });
+}
+
+function isLikelySameSelfMessage(
+  existingContent: string | null,
+  incomingContent: string,
+  contentType: string,
+) {
+  if (contentType !== 'sticker') {
+    return existingContent === (incomingContent || '');
+  }
+
+  const existingSignature = getStickerSignature(existingContent);
+  const incomingSignature = getStickerSignature(incomingContent);
+  return !!existingSignature && existingSignature === incomingSignature;
+}
+
+function mergeMessageContent(
+  existingContent: string | null,
+  incomingContent: string,
+  contentType: string,
+) {
+  if (contentType !== 'sticker') {
+    return incomingContent || existingContent || '';
+  }
+
+  return mergeStickerContent(existingContent, incomingContent);
+}
+
+function getStickerSignature(content: string | null): string | null {
+  if (!content) return null;
+
+  try {
+    const parsed = JSON.parse(content);
+    const id = parsed?.id;
+    const cateId = parsed?.cateId;
+    const type = parsed?.type;
+    if (typeof id === 'number' && typeof cateId === 'number' && typeof type === 'number') {
+      return `${id}:${cateId}:${type}`;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function mergeStickerContent(existingContent: string | null, incomingContent: string) {
+  const existing = parseStickerContent(existingContent);
+  const incoming = parseStickerContent(incomingContent);
+
+  if (!existing) return incomingContent;
+  if (!incoming) return existingContent || incomingContent;
+
+  return JSON.stringify({
+    ...existing,
+    ...incoming,
+    text: incoming.text || existing.text || '',
+    uri: incoming.uri || existing.uri || '',
+    stickerUrl: incoming.stickerUrl || existing.stickerUrl || '',
+    stickerSpriteUrl: incoming.stickerSpriteUrl || existing.stickerSpriteUrl || '',
+  });
+}
+
+function parseStickerContent(content: string | null) {
+  if (!content) return null;
+  try {
+    const parsed = JSON.parse(content);
+    if (
+      typeof parsed?.id === 'number'
+      && typeof parsed?.cateId === 'number'
+      && typeof parsed?.type === 'number'
+    ) {
+      return parsed;
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 // Upsert contact — handles both user and group conversations

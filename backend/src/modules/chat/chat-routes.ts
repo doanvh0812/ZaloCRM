@@ -13,6 +13,15 @@ import { randomUUID } from 'node:crypto';
 import type { Server } from 'socket.io';
 
 type QueryParams = Record<string, string>;
+type StickerPayload = {
+  id: number;
+  cateId: number;
+  type: number;
+  text?: string;
+  uri?: string;
+  stickerUrl?: string;
+  stickerSpriteUrl?: string;
+};
 
 export async function chatRoutes(app: FastifyInstance) {
   app.addHook('preHandler', authMiddleware);
@@ -133,27 +142,19 @@ export async function chatRoutes(app: FastifyInstance) {
       const threadId = conversation.externalThreadId || '';
       // zca-js sendMessage(message, threadId, type) — type: 0=User, 1=Group
       const threadType = conversation.threadType === 'group' ? 1 : 0;
+      const sentAt = new Date();
 
       zaloRateLimiter.recordSend(conversation.zaloAccountId);
       await instance.api.sendMessage({ msg: content }, threadId, threadType);
 
-      const message = await prisma.message.create({
-        data: {
-          id: randomUUID(),
-          conversationId: id,
-          senderType: 'self',
-          senderUid: conversation.zaloAccount.zaloUid || '',
-          senderName: 'Staff',
-          content,
-          contentType: 'text',
-          sentAt: new Date(),
-          repliedByUserId: user.id,
-        },
-      });
-
-      await prisma.conversation.update({
-        where: { id },
-        data: { lastMessageAt: new Date(), isReplied: true, unreadCount: 0 },
+      const message = await createOutgoingMessage({
+        conversationId: id,
+        zaloAccountId: conversation.zaloAccountId,
+        senderUid: conversation.zaloAccount.zaloUid || '',
+        content,
+        contentType: 'text',
+        sentAt,
+        repliedByUserId: user.id,
       });
 
       const io = (app as any).io as Server;
@@ -163,6 +164,99 @@ export async function chatRoutes(app: FastifyInstance) {
     } catch (err) {
       logger.error('[chat] Send message error:', err);
       return reply.status(500).send({ error: 'Failed to send message' });
+    }
+  });
+
+  app.get('/api/v1/conversations/:id/stickers', { preHandler: requireZaloAccess('chat') }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user!;
+    const { id } = request.params as { id: string };
+    const { keyword = '', limit = '24' } = request.query as QueryParams;
+
+    if (!keyword.trim()) return { stickers: [] };
+
+    const conversation = await prisma.conversation.findFirst({
+      where: { id, orgId: user.orgId },
+      select: { zaloAccountId: true },
+    });
+    if (!conversation) return reply.status(404).send({ error: 'Conversation not found' });
+
+    const instance = zaloPool.getInstance(conversation.zaloAccountId);
+    if (!instance?.api) return reply.status(400).send({ error: 'Zalo account not connected' });
+
+    try {
+      const stickerIds = await instance.api.getStickers(keyword.trim());
+      if (!Array.isArray(stickerIds) || stickerIds.length === 0) {
+        return { stickers: [] };
+      }
+
+      const maxItems = Math.max(1, Math.min(parseInt(limit) || 24, 50));
+      const stickers = await instance.api.getStickersDetail(stickerIds.slice(0, maxItems));
+      return { stickers: Array.isArray(stickers) ? stickers : [] };
+    } catch (err) {
+      logger.error('[chat] Search stickers error:', err);
+      return reply.status(500).send({ error: 'Failed to search stickers' });
+    }
+  });
+
+  app.post('/api/v1/conversations/:id/stickers', { preHandler: requireZaloAccess('chat') }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user!;
+    const { id } = request.params as { id: string };
+    const sticker = request.body as StickerPayload;
+
+    if (!sticker?.id || !sticker?.cateId || typeof sticker.type !== 'number') {
+      return reply.status(400).send({ error: 'Invalid sticker payload' });
+    }
+
+    const conversation = await prisma.conversation.findFirst({
+      where: { id, orgId: user.orgId },
+      include: { zaloAccount: true },
+    });
+    if (!conversation) return reply.status(404).send({ error: 'Conversation not found' });
+
+    const instance = zaloPool.getInstance(conversation.zaloAccountId);
+    if (!instance?.api) return reply.status(400).send({ error: 'Zalo account not connected' });
+
+    const limits = zaloRateLimiter.checkLimits(conversation.zaloAccountId);
+    if (!limits.allowed) {
+      return reply.status(429).send({ error: limits.reason });
+    }
+
+    try {
+      const threadId = conversation.externalThreadId || '';
+      const threadType = conversation.threadType === 'group' ? 1 : 0;
+      const sentAt = new Date();
+      const stickerPayload = {
+        id: Number(sticker.id),
+        cateId: Number(sticker.cateId),
+        type: Number(sticker.type),
+      };
+
+      zaloRateLimiter.recordSend(conversation.zaloAccountId);
+      await instance.api.sendSticker(stickerPayload, threadId, threadType);
+
+      const message = await createOutgoingMessage({
+        conversationId: id,
+        zaloAccountId: conversation.zaloAccountId,
+        senderUid: conversation.zaloAccount.zaloUid || '',
+        content: JSON.stringify({
+          ...stickerPayload,
+          text: sticker.text || '',
+          uri: sticker.uri || '',
+          stickerUrl: sticker.stickerUrl || '',
+          stickerSpriteUrl: sticker.stickerSpriteUrl || '',
+        }),
+        contentType: 'sticker',
+        sentAt,
+        repliedByUserId: user.id,
+      });
+
+      const io = (app as any).io as Server;
+      io?.emit('chat:message', { accountId: conversation.zaloAccountId, message, conversationId: id });
+
+      return message;
+    } catch (err) {
+      logger.error('[chat] Send sticker error:', err);
+      return reply.status(500).send({ error: 'Failed to send sticker' });
     }
   });
 
@@ -178,4 +272,35 @@ export async function chatRoutes(app: FastifyInstance) {
 
     return { success: true };
   });
+}
+
+async function createOutgoingMessage(params: {
+  conversationId: string;
+  zaloAccountId: string;
+  senderUid: string;
+  content: string;
+  contentType: string;
+  sentAt: Date;
+  repliedByUserId: string;
+}) {
+  const message = await prisma.message.create({
+    data: {
+      id: randomUUID(),
+      conversationId: params.conversationId,
+      senderType: 'self',
+      senderUid: params.senderUid,
+      senderName: 'Staff',
+      content: params.content,
+      contentType: params.contentType,
+      sentAt: params.sentAt,
+      repliedByUserId: params.repliedByUserId,
+    },
+  });
+
+  await prisma.conversation.update({
+    where: { id: params.conversationId },
+    data: { lastMessageAt: params.sentAt, isReplied: true, unreadCount: 0 },
+  });
+
+  return message;
 }

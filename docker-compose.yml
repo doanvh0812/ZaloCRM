@@ -23,6 +23,8 @@ services:
       - /tmp
     security_opt:
       - no-new-privileges:true
+    networks:
+      - zalo-crm
 
   db:
     image: postgres:16-alpine
@@ -35,7 +37,7 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
     ports:
-      - "127.0.0.1:5433:5432"
+      - "127.0.0.1:5435:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-crmuser}"]
       interval: 10s
@@ -46,25 +48,33 @@ services:
       -c shared_buffers=128MB
       -c effective_cache_size=256MB
       -c max_connections=50
+    networks:
+      - zalo-crm
 
-  backup:
-    image: prodrigestivill/postgres-backup-local
-    container_name: zalo-crm-backup
-    restart: unless-stopped
-    volumes:
-      - ./backups:/backups
-    environment:
-      POSTGRES_HOST: db
-      POSTGRES_DB: ${DB_NAME:-zalocrm}
-      POSTGRES_USER: ${DB_USER:-crmuser}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      SCHEDULE: "@daily"
-      BACKUP_KEEP_DAYS: 7
-      BACKUP_KEEP_WEEKS: 4
-      BACKUP_KEEP_MONTHS: 3
-    depends_on:
-      - db
+  # backup:
+  #   image: prodrigestivill/postgres-backup-local
+  #   container_name: zalo-crm-backup
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./backups:/backups
+  #   environment:
+  #     POSTGRES_HOST: db
+  #     POSTGRES_DB: ${DB_NAME:-zalocrm}
+  #     POSTGRES_USER: ${DB_USER:-crmuser}
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD}
+  #     SCHEDULE: "@daily"
+  #     BACKUP_KEEP_DAYS: 7
+  #     BACKUP_KEEP_WEEKS: 4
+  #     BACKUP_KEEP_MONTHS: 3
+  #   depends_on:
+  #     - db
+  #   networks:
+  #     - zalo-crm
 
 volumes:
   pg_data:
   file_storage:
+
+networks:
+  zalo-crm:
+    driver: bridge
