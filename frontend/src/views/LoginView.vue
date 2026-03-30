@@ -1,14 +1,14 @@
 <template>
-  <v-card class="pa-8" style="backdrop-filter: blur(20px);" elevation="0">
+  <v-card class="pa-8" elevation="0" style="border: 1px solid #E5E7EB;">
     <div class="text-center mb-8">
       <div
-        class="ai-core-orb mx-auto mb-4 d-flex align-center justify-center"
-        style="width: 64px; height: 64px; background: linear-gradient(135deg, #00F2FF, #0077B6);"
+        class="mx-auto mb-4 d-flex align-center justify-center rounded-circle"
+        style="width: 64px; height: 64px; background: #2196F3;"
       >
-        <v-icon size="32" color="white">mdi-robot</v-icon>
+        <v-icon size="32" color="white">mdi-message-text</v-icon>
       </div>
-      <h1 class="text-h5 font-weight-bold">Zalo<span style="color: #00F2FF;">CRM</span></h1>
-      <p class="text-caption mt-1" style="color: #8892b0;">Liquid Silicon • Multi-Account Zalo Management</p>
+      <h1 class="text-h5 font-weight-bold">Zalo<span style="color: #2196F3;">CRM</span></h1>
+      <p class="text-caption mt-1" style="color: #9CA3AF;">Multi-Account Zalo Management</p>
     </div>
 
     <v-form @submit.prevent="handleLogin">

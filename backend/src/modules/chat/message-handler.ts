@@ -349,14 +349,18 @@ async function updateConversationAfterMessage(
   await prisma.conversation.update({ where: { id: conversationId }, data: updateData });
 }
 
-// Soft-delete a message by its Zalo message ID
+// Soft-delete a message by its Zalo message ID (tries zaloMsgId match)
 export async function handleMessageUndo(accountId: string, zaloMsgId: string): Promise<void> {
   try {
-    await prisma.message.updateMany({
+    const result = await prisma.message.updateMany({
       where: { zaloMsgId: String(zaloMsgId) },
       data: { isDeleted: true, deletedAt: new Date() },
     });
-    logger.info(`[message-handler] Undo message ${zaloMsgId} for account ${accountId}`);
+    if (result.count > 0) {
+      logger.info(`[message-handler] Undo message ${zaloMsgId} for account ${accountId} (${result.count} rows)`);
+    } else {
+      logger.warn(`[message-handler] Undo message ${zaloMsgId} for account ${accountId}: no matching message found in DB`);
+    }
   } catch (err) {
     logger.error('[message-handler] handleMessageUndo error:', err);
   }

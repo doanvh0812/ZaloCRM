@@ -1,51 +1,51 @@
 <template>
   <v-app :class="{ 'liquid-bg': isDark }">
-    <!-- Top bar — glass effect -->
-    <v-app-bar density="comfortable" flat>
+    <!-- Top bar -->
+    <v-app-bar density="comfortable" flat elevation="0">
       <v-app-bar-nav-icon @click="drawer = !drawer" />
 
-      <!-- AI Core Orb + Title -->
-      <div class="d-flex align-center" style="gap: 12px;">
+      <!-- Logo + Title -->
+      <div class="d-flex align-center" style="gap: 10px;">
         <div
-          class="ai-core-orb d-flex align-center justify-center"
-          style="width: 32px; height: 32px; background: linear-gradient(135deg, #00F2FF, #0077B6);"
+          class="d-flex align-center justify-center rounded-circle"
+          style="width: 32px; height: 32px; background: #2196F3;"
         >
-          <v-icon size="18" color="white">mdi-robot</v-icon>
+          <v-icon size="18" color="white">mdi-message-text</v-icon>
         </div>
         <v-app-bar-title>
-          <span class="font-weight-bold">Zalo</span><span style="color: #00F2FF;">CRM</span>
+          <span class="font-weight-bold" style="font-size: 1.1rem;">Zalo</span><span style="color: #2196F3; font-weight: 600;">CRM</span>
         </v-app-bar-title>
       </div>
 
       <!-- Global search -->
-      <GlobalSearch class="mx-2" />
+      <GlobalSearch class="mx-4" />
 
       <v-spacer />
 
-      <!-- Status indicator -->
+      <!-- Online status -->
       <div
-        class="d-flex align-center mr-4 px-3 py-1 rounded-pill"
-        style="background: rgba(76,175,80,0.1); border: 1px solid rgba(76,175,80,0.2);"
+        class="d-flex align-center mr-3 px-3 py-1 rounded-pill"
+        style="background: rgba(76,175,80,0.08); border: 1px solid rgba(76,175,80,0.15);"
       >
         <span
           class="status-dot"
-          style="width: 8px; height: 8px; border-radius: 50%; background: #4CAF50; display: inline-block; margin-right: 8px;"
+          style="width: 8px; height: 8px; border-radius: 50%; background: #66BB6A; display: inline-block; margin-right: 8px;"
         ></span>
-        <span class="text-caption font-weight-bold" style="color: #4CAF50; letter-spacing: 1px;">ONLINE</span>
+        <span class="text-caption font-weight-medium" style="color: #66BB6A; letter-spacing: 0.5px;">ONLINE</span>
       </div>
 
-      <span class="text-body-2 mr-3" v-if="authStore.user">{{ authStore.user.fullName }}</span>
+      <span class="text-body-2 mr-2" v-if="authStore.user" style="font-weight: 500;">{{ authStore.user.fullName }}</span>
       <NotificationBell />
-      <v-btn icon variant="text" @click="toggleTheme">
+      <v-btn icon variant="text" size="small" @click="toggleTheme">
         <v-icon>{{ isDark ? 'mdi-weather-sunny' : 'mdi-weather-night' }}</v-icon>
       </v-btn>
-      <v-btn icon variant="text" @click="logout">
+      <v-btn icon variant="text" size="small" @click="logout">
         <v-icon>mdi-logout</v-icon>
       </v-btn>
     </v-app-bar>
 
-    <!-- Sidebar navigation -->
-    <v-navigation-drawer v-model="drawer" :rail="rail" permanent @click="rail = false">
+    <!-- Sidebar navigation — icon rail style like Figma -->
+    <v-navigation-drawer v-model="drawer" :rail="rail" permanent @click="rail = false" :width="220">
       <v-list density="compact" nav class="mt-2">
         <v-list-item
           v-for="item in menuItems"
@@ -55,7 +55,8 @@
           :title="item.title"
           :value="item.path"
           rounded="xl"
-          class="mb-1 mx-2"
+          class="mb-1 mx-2 nav-item"
+          active-class="nav-item-active"
         />
       </v-list>
 
@@ -94,8 +95,8 @@ const authStore = useAuthStore();
 const router = useRouter();
 
 const drawer = ref(true);
-const rail = ref(false);
-const isDark = ref(localStorage.getItem('theme') !== 'light');
+const rail = ref(true);
+const isDark = ref(localStorage.getItem('theme') === 'dark');
 
 onMounted(() => {
   theme.global.name.value = isDark.value ? 'dark' : 'light';
@@ -123,3 +124,18 @@ function logout() {
   router.push('/login');
 }
 </script>
+
+<style scoped>
+.nav-item {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: #6B7280;
+}
+.nav-item-active {
+  background: #E3F2FD !important;
+  color: #2196F3 !important;
+}
+.nav-item-active .v-icon {
+  color: #2196F3 !important;
+}
+</style>

@@ -1,12 +1,12 @@
 <template>
   <div
     class="chat-contact-panel d-flex flex-column"
-    style="width: 320px; border-left: 1px solid rgba(0,0,0,0.12); height: 100%; overflow-y: auto; flex-shrink: 0;"
+    style="width: 320px; border-left: 1px solid #E5E7EB; height: 100%; overflow-y: auto; flex-shrink: 0; background: #FFFFFF;"
   >
     <!-- Header -->
-    <div class="pa-3 d-flex align-center" style="border-bottom: 1px solid rgba(0,0,0,0.12);">
-      <v-icon icon="mdi-account-details" class="mr-2" />
-      <span class="font-weight-medium">Thông tin khách hàng</span>
+    <div class="pa-3 d-flex align-center" style="border-bottom: 1px solid #E5E7EB;">
+      <v-icon icon="mdi-account-details" class="mr-2" color="primary" />
+      <span class="font-weight-medium" style="color: var(--text-primary, #1A1A2E);">Thông tin khách hàng</span>
       <v-spacer />
       <v-btn icon size="small" variant="text" @click="$emit('close')">
         <v-icon>mdi-close</v-icon>

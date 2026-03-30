@@ -1,42 +1,55 @@
 <template>
   <div class="message-thread d-flex flex-column flex-grow-1" style="height: 100%;">
     <!-- Empty state -->
-    <div v-if="!conversation" class="d-flex align-center justify-center flex-grow-1">
-      <div class="text-center text-grey">
-        <v-icon icon="mdi-chat-outline" size="96" color="grey-lighten-2" />
-        <p class="text-h6 mt-4">Chọn cuộc trò chuyện</p>
+    <div v-if="!conversation" class="d-flex align-center justify-center flex-grow-1" style="background: #F8F9FA;">
+      <div class="text-center">
+        <v-icon icon="mdi-chat-outline" size="80" color="grey-lighten-2" />
+        <p class="text-h6 mt-4" style="color: #9CA3AF;">Chọn cuộc trò chuyện</p>
       </div>
     </div>
 
     <template v-else>
-      <!-- Header -->
-      <div class="pa-3 d-flex align-center" style="border-bottom: 1px solid var(--border-glow, rgba(0,242,255,0.1));">
-        <v-avatar size="36" color="grey-lighten-2" class="mr-3">
-          <v-icon v-if="conversation.threadType === 'group'" icon="mdi-account-group" />
+      <!-- Header — Figma style: avatar, name, online status, action icons -->
+      <div class="msg-header pa-3 d-flex align-center">
+        <v-avatar size="40" color="grey-lighten-3" class="mr-3">
+          <v-icon v-if="conversation.threadType === 'group'" icon="mdi-account-group" color="grey" />
           <v-img v-else-if="conversation.contact?.avatarUrl" :src="conversation.contact.avatarUrl" />
-          <v-icon v-else icon="mdi-account" />
+          <v-icon v-else icon="mdi-account" color="grey" />
         </v-avatar>
         <div class="flex-grow-1">
-          <div class="font-weight-medium">{{ conversation.contact?.fullName || 'Unknown' }}</div>
-          <div class="text-caption text-grey">{{ conversation.zaloAccount?.displayName || 'Zalo' }}</div>
+          <div class="font-weight-bold" style="font-size: 0.95rem; color: var(--text-primary, #1A1A2E);">
+            {{ conversation.contact?.fullName || 'Unknown' }}
+          </div>
+          <div class="d-flex align-center" style="gap: 6px;">
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: #66BB6A; display: inline-block;"></span>
+            <span class="text-caption" style="color: #66BB6A; font-weight: 500;">Online</span>
+          </div>
         </div>
+        <!-- Action icons — Figma style -->
+        <v-btn icon variant="text" size="small" color="grey">
+          <v-icon size="20">mdi-video-outline</v-icon>
+        </v-btn>
         <v-btn
-          :icon="showContactPanel ? 'mdi-account-details' : 'mdi-account-details-outline'"
-          size="small" variant="text"
-          :color="showContactPanel ? 'primary' : undefined"
+          icon variant="text" size="small"
+          :color="showContactPanel ? 'primary' : 'grey'"
           @click="$emit('toggle-contact-panel')"
-        />
+        >
+          <v-icon size="20">mdi-information-outline</v-icon>
+        </v-btn>
       </div>
 
-      <!-- Messages -->
-      <div ref="messagesContainer" class="flex-grow-1 overflow-y-auto pa-3 chat-messages-area">
+      <!-- Messages area -->
+      <div ref="messagesContainer" class="flex-grow-1 overflow-y-auto pa-4 chat-messages-area">
         <v-progress-linear v-if="loading" indeterminate color="primary" class="mb-2" />
-        <div v-for="msg in messages" :key="msg.id" class="mb-2 d-flex" :class="msg.senderType === 'self' ? 'justify-end' : 'justify-start'">
-          <div style="max-width: 70%;">
-            <div v-if="conversation.threadType === 'group' && msg.senderType !== 'self'" class="text-caption mb-1" style="color: #00F2FF; font-weight: 500;">
+
+        <div v-for="msg in messages" :key="msg.id" class="mb-3 d-flex" :class="msg.senderType === 'self' ? 'justify-end' : 'justify-start'">
+          <div style="max-width: 65%;">
+            <!-- Sender name for groups -->
+            <div v-if="conversation.threadType === 'group' && msg.senderType !== 'self'" class="text-caption mb-1" style="color: #2196F3; font-weight: 500;">
               {{ msg.senderName || 'Unknown' }}
             </div>
-            <div class="message-bubble pa-2 px-3 rounded-lg" :class="msg.senderType === 'self' ? 'bg-primary text-white' : 'bg-white'" style="word-wrap: break-word;">
+
+            <div class="message-bubble pa-3 px-4" :class="msg.senderType === 'self' ? 'bg-primary text-white' : ''">
               <!-- Deleted -->
               <div v-if="msg.isDeleted" class="text-decoration-line-through font-italic" style="opacity: 0.6;">
                 {{ msg.content || '(tin nhắn)' }}<span class="text-caption"> (đã thu hồi)</span>
@@ -47,7 +60,7 @@
               </div>
               <!-- File/PDF -->
               <div v-else-if="getFileInfo(msg)" class="file-card">
-                <v-icon size="20" class="mr-2" color="info">mdi-file-document-outline</v-icon>
+                <v-icon size="20" class="mr-2" color="primary">mdi-file-document-outline</v-icon>
                 <div class="flex-grow-1">
                   <div class="text-body-2 font-weight-medium">{{ getFileInfo(msg)!.name }}</div>
                   <div class="text-caption" style="opacity: 0.6;">{{ getFileInfo(msg)!.size }}</div>
@@ -68,7 +81,7 @@
               <div v-else-if="isReminderMessage(msg)" class="reminder-card">
                 <div class="d-flex align-center mb-1">
                   <v-icon size="16" color="warning" class="mr-1">mdi-calendar-clock</v-icon>
-                  <span class="text-caption font-weight-bold" style="color: #FFB74D;">Nhắc hẹn</span>
+                  <span class="text-caption font-weight-bold" style="color: #FFA726;">Nhắc hẹn</span>
                 </div>
                 <div class="text-body-2">{{ getReminderTitle(msg) }}</div>
                 <div v-if="getReminderTime(msg)" class="text-caption mt-1" style="opacity: 0.7;">
@@ -79,31 +92,56 @@
                 </v-btn>
               </div>
               <!-- Default text -->
-              <div v-else>{{ parseDisplayContent(msg.content) }}</div>
-              <!-- Timestamp -->
-              <div class="text-caption mt-1 msg-time" :class="msg.senderType === 'self' ? 'msg-time-self' : 'msg-time-contact'" style="font-size: 0.7rem;">
-                {{ formatMessageTime(msg.sentAt) }}
+              <div v-else style="line-height: 1.5;">{{ parseDisplayContent(msg.content) }}</div>
+
+              <!-- Timestamp + read status -->
+              <div class="d-flex align-center mt-1" :class="msg.senderType === 'self' ? 'justify-end' : ''" style="gap: 4px;">
+                <span class="msg-time" :class="msg.senderType === 'self' ? 'msg-time-self' : 'msg-time-contact'" style="font-size: 0.7rem;">
+                  {{ formatMessageTime(msg.sentAt) }}
+                </span>
+                <v-icon v-if="msg.senderType === 'self'" size="14" :color="msg.senderType === 'self' ? 'rgba(255,255,255,0.7)' : 'primary'">mdi-check-all</v-icon>
               </div>
             </div>
           </div>
         </div>
-        <div v-if="!loading && messages.length === 0" class="text-center pa-8 text-grey">Chưa có tin nhắn</div>
+
+        <div v-if="!loading && messages.length === 0" class="text-center pa-8" style="color: #9CA3AF;">Chưa có tin nhắn</div>
       </div>
 
-      <!-- Input -->
-      <div class="pa-2 d-flex align-end chat-input-area">
-        <v-btn icon variant="text" color="warning" class="mr-2 mb-1" :disabled="sending" @click="openStickerPicker">
-          <v-icon>mdi-sticker-emoji</v-icon>
+      <!-- Input area — Figma style: attachment icon, text field, send button -->
+      <div class="pa-3 d-flex align-center chat-input-area" style="gap: 12px;">
+        <v-btn icon variant="text" size="small" color="grey" :disabled="sending" @click="openStickerPicker">
+          <v-icon>mdi-paperclip</v-icon>
         </v-btn>
-        <v-textarea v-model="inputText" placeholder="Nhập tin nhắn..." variant="solo-filled" density="compact" hide-details auto-grow rows="1" max-rows="3" @keydown.enter.exact.prevent="handleSend" class="flex-grow-1 mr-2" />
-        <v-btn icon color="primary" :loading="sending" :disabled="!inputText.trim()" @click="handleSend"><v-icon>mdi-send</v-icon></v-btn>
+        <v-textarea
+          v-model="inputText"
+          placeholder="Type your message here..."
+          variant="solo-filled"
+          density="compact"
+          hide-details
+          auto-grow
+          rows="1"
+          max-rows="3"
+          @keydown.enter.exact.prevent="handleSend"
+          class="flex-grow-1 msg-input"
+        />
+        <v-btn
+          variant="text"
+          color="primary"
+          :loading="sending"
+          :disabled="!inputText.trim()"
+          @click="handleSend"
+          class="text-none font-weight-medium"
+        >
+          Send message
+        </v-btn>
       </div>
     </template>
 
     <!-- Image preview dialog -->
     <v-dialog v-model="showImagePreview" max-width="900" content-class="elevation-0">
       <div class="text-center" @click="showImagePreview = false" style="cursor: pointer;">
-        <img :src="previewImageUrl" alt="Preview" style="max-width: 100%; max-height: 85vh; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.5);" />
+        <img :src="previewImageUrl" alt="Preview" style="max-width: 100%; max-height: 85vh; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);" />
         <div class="text-caption mt-2" style="color: #aaa;">Nhấn để đóng</div>
       </div>
     </v-dialog>
@@ -111,6 +149,7 @@
     <!-- Sync snackbar -->
     <v-snackbar v-model="syncSnack.show" :color="syncSnack.color" timeout="3000">{{ syncSnack.text }}</v-snackbar>
 
+    <!-- Sticker dialog -->
     <v-dialog v-model="showStickerDialog" max-width="720">
       <v-card>
         <v-card-title class="d-flex align-center">
@@ -161,7 +200,7 @@
             </button>
           </div>
 
-          <div v-else class="text-center text-grey py-8">
+          <div v-else class="text-center py-8" style="color: #9CA3AF;">
             {{ stickerKeyword ? 'Không tìm thấy sticker phù hợp' : 'Nhập từ khóa để tìm sticker' }}
           </div>
         </v-card-text>
@@ -330,13 +369,137 @@ watch(() => props.messages.length, async () => { await nextTick(); if (messagesC
 </script>
 
 <style scoped>
-.message-bubble { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); }
-.reminder-card { padding: 8px 12px; border-left: 3px solid #FFB74D; border-radius: 8px; background: rgba(255, 183, 77, 0.08); }
-.file-card { display: flex; align-items: center; padding: 8px 12px; border-radius: 8px; background: rgba(0, 242, 255, 0.05); border: 1px solid rgba(0, 242, 255, 0.1); }
-.chat-image { max-width: 100%; max-height: 300px; border-radius: 12px; cursor: pointer; transition: transform 0.2s; }
-.chat-image:hover { transform: scale(1.02); }
-.chat-sticker { width: 120px; height: 120px; object-fit: contain; }
-.sticker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px; }
-.sticker-option { display: flex; align-items: center; justify-content: center; min-height: 96px; border: 1px solid rgba(0, 242, 255, 0.12); border-radius: 12px; background: rgba(0, 242, 255, 0.04); cursor: pointer; padding: 8px; }
-.sticker-option-image { max-width: 72px; max-height: 72px; object-fit: contain; }
+.msg-header {
+  background: #FFFFFF;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.chat-messages-area {
+  background: #FFFFFF;
+}
+
+.message-bubble {
+  box-shadow: none;
+  font-size: 0.9rem;
+}
+
+.message-bubble.bg-primary {
+  border-radius: 18px 18px 4px 18px;
+}
+
+.message-bubble:not(.bg-primary) {
+  background: #F0F2F5;
+  border-radius: 4px 18px 18px 18px;
+  color: #1A1A2E;
+}
+
+.chat-input-area {
+  background: #FFFFFF;
+  border-top: 1px solid #E5E7EB;
+}
+
+.msg-input :deep(.v-field) {
+  background: #F5F7FB !important;
+  border-radius: 20px !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.reminder-card {
+  padding: 8px 12px;
+  border-left: 3px solid #FFA726;
+  border-radius: 8px;
+  background: rgba(255, 167, 38, 0.06);
+}
+
+.file-card {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(33, 150, 243, 0.05);
+  border: 1px solid rgba(33, 150, 243, 0.1);
+}
+
+.chat-image {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.chat-image:hover {
+  transform: scale(1.02);
+}
+
+.chat-sticker {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+}
+
+.sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 12px;
+}
+
+.sticker-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  background: #F8F9FA;
+  cursor: pointer;
+  padding: 8px;
+  transition: all 0.15s ease;
+}
+
+.sticker-option:hover {
+  background: #E3F2FD;
+  border-color: #2196F3;
+}
+
+.sticker-option-image {
+  max-width: 72px;
+  max-height: 72px;
+  object-fit: contain;
+}
+
+/* Dark mode overrides */
+.v-theme--dark .msg-header {
+  background: rgba(17, 34, 64, 0.3);
+  border-bottom-color: rgba(66, 165, 245, 0.1);
+}
+
+.v-theme--dark .chat-messages-area {
+  background: rgba(10, 25, 47, 0.3);
+}
+
+.v-theme--dark .chat-input-area {
+  background: rgba(17, 34, 64, 0.5);
+  border-top-color: rgba(66, 165, 245, 0.1);
+}
+
+.v-theme--dark .msg-input :deep(.v-field) {
+  background: rgba(17, 34, 64, 0.5) !important;
+}
+
+.v-theme--dark .message-bubble:not(.bg-primary) {
+  background: rgba(66, 165, 245, 0.08);
+  color: #E6F1FF;
+}
+
+.v-theme--dark .sticker-option {
+  border-color: rgba(66, 165, 245, 0.12);
+  background: rgba(66, 165, 245, 0.04);
+}
+
+.v-theme--dark .file-card {
+  background: rgba(66, 165, 245, 0.05);
+  border-color: rgba(66, 165, 245, 0.1);
+}
 </style>

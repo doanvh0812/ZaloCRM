@@ -1,68 +1,109 @@
 <template>
-  <div class="conversation-list d-flex flex-column" style="width: 100%; border-right: 1px solid var(--border-glow, rgba(0,242,255,0.1)); height: 100%;">
-    <!-- Account filter + Search -->
-    <div class="pa-2">
-      <v-select
-        v-model="selectedAccountId"
-        :items="accountOptions"
-        item-title="text"
-        item-value="value"
-        label="Tất cả Zalo"
-        density="compact"
-        variant="solo-filled"
-        hide-details
-        clearable
-        class="mb-2"
-        @update:model-value="$emit('filter-account', $event)"
-      />
+  <div class="conversation-list d-flex flex-column" style="width: 100%; border-right: 1px solid var(--border-light, #E5E7EB); height: 100%;">
+    <!-- Header -->
+    <div class="pa-4 pb-2">
+      <div class="d-flex align-center mb-3">
+        <h2 class="text-h6 font-weight-bold" style="color: var(--text-primary, #1A1A2E);">Messages</h2>
+        <v-spacer />
+        <v-select
+          v-model="selectedAccountId"
+          :items="accountOptions"
+          item-title="text"
+          item-value="value"
+          label="Tất cả Zalo"
+          density="compact"
+          variant="outlined"
+          hide-details
+          clearable
+          style="max-width: 140px;"
+          @update:model-value="$emit('filter-account', $event)"
+        />
+      </div>
+
+      <!-- Search -->
       <v-text-field
         :model-value="search"
         @update:model-value="$emit('update:search', $event)"
-        placeholder="Tìm kiếm..."
+        placeholder="Search"
         prepend-inner-icon="mdi-magnify"
         variant="solo-filled"
         density="compact"
         hide-details
         clearable
+        class="search-field"
       />
+
+      <!-- Sort -->
+      <div class="d-flex align-center mt-2">
+        <span class="text-caption" style="color: var(--text-muted, #9CA3AF);">Sort by</span>
+        <v-menu>
+          <template #activator="{ props }">
+            <v-btn variant="text" size="x-small" v-bind="props" class="ml-1 text-capitalize" color="primary">
+              {{ sortLabel }}
+              <v-icon size="14" class="ml-1">mdi-chevron-down</v-icon>
+            </v-btn>
+          </template>
+          <v-list density="compact">
+            <v-list-item @click="sortBy = 'newest'" :active="sortBy === 'newest'">
+              <v-list-item-title>Newest</v-list-item-title>
+            </v-list-item>
+            <v-list-item @click="sortBy = 'unread'" :active="sortBy === 'unread'">
+              <v-list-item-title>Unread</v-list-item-title>
+            </v-list-item>
+          </v-list>
+        </v-menu>
+      </div>
     </div>
 
-    <!-- List -->
+    <!-- Conversation list -->
     <v-list class="flex-grow-1 overflow-y-auto pa-0" density="compact">
       <v-progress-linear v-if="loading" indeterminate color="primary" />
 
       <v-list-item
-        v-for="conv in conversations"
+        v-for="conv in sortedConversations"
         :key="conv.id"
         :active="conv.id === selectedId"
         @click="$emit('select', conv.id)"
-        class="py-2"
-        :class="{ 'conversation-active': conv.id === selectedId, 'bg-blue-lighten-5': conv.unreadCount > 0 && conv.id !== selectedId }"
+        class="conv-item py-3 px-4"
+        :class="{
+          'conv-item-active': conv.id === selectedId,
+          'conv-item-unread': conv.unreadCount > 0 && conv.id !== selectedId,
+        }"
       >
         <template #prepend>
-          <v-avatar size="40" color="grey-lighten-2">
-            <v-icon v-if="conv.threadType === 'group'" icon="mdi-account-group" />
-            <v-img v-else-if="conv.contact?.avatarUrl" :src="conv.contact.avatarUrl" />
-            <v-icon v-else icon="mdi-account" />
-          </v-avatar>
+          <div class="position-relative mr-3">
+            <v-avatar size="44" color="grey-lighten-3">
+              <v-icon v-if="conv.threadType === 'group'" icon="mdi-account-group" color="grey" />
+              <v-img v-else-if="conv.contact?.avatarUrl" :src="conv.contact.avatarUrl" />
+              <v-icon v-else icon="mdi-account" color="grey" />
+            </v-avatar>
+            <!-- Online indicator dot -->
+            <span
+              v-if="conv.id === selectedId"
+              class="online-dot"
+              style="position: absolute; bottom: 0; right: 0; width: 12px; height: 12px; border-radius: 50%; background: #66BB6A; border: 2px solid #FFFFFF;"
+            ></span>
+          </div>
         </template>
 
         <v-list-item-title class="d-flex align-center">
-          <span class="text-truncate" :class="{ 'font-weight-bold': conv.unreadCount > 0 }">
+          <span class="text-truncate conv-name" :class="{ 'font-weight-bold': conv.unreadCount > 0 }">
             {{ conv.threadType === 'group' ? (conv.contact?.fullName || 'Nhóm') : (conv.contact?.fullName || 'Unknown') }}
           </span>
           <v-chip v-if="conv.threadType === 'group'" size="x-small" color="info" variant="tonal" class="ml-1">Nhóm</v-chip>
           <v-spacer />
-          <span class="text-caption text-grey ml-1">{{ formatTime(conv.lastMessageAt) }}</span>
+          <span class="conv-time text-caption">{{ formatTime(conv.lastMessageAt) }}</span>
         </v-list-item-title>
 
-        <v-list-item-subtitle class="d-flex align-center">
-          <span class="text-truncate" style="max-width: 200px;" :class="{ 'font-weight-medium': conv.unreadCount > 0 }">
+        <v-list-item-subtitle class="d-flex align-center mt-1">
+          <span class="text-truncate conv-preview" :class="{ 'font-weight-medium': conv.unreadCount > 0 }" style="max-width: 200px;">
             {{ lastMessagePreview(conv) }}
           </span>
           <v-spacer />
+          <!-- Read status / Unread badge -->
+          <v-icon v-if="conv.unreadCount === 0 && conv.messages?.[0]?.senderType === 'self'" size="16" color="primary" class="ml-1">mdi-check-all</v-icon>
           <v-badge
-            v-if="conv.unreadCount > 0"
+            v-else-if="conv.unreadCount > 0"
             :content="conv.unreadCount"
             color="error"
             inline
@@ -71,13 +112,13 @@
 
         <!-- Zalo account indicator -->
         <template #append>
-          <span v-if="conv.zaloAccount?.displayName" class="text-caption text-grey-darken-1 ml-1" style="font-size: 0.65rem; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          <span v-if="conv.zaloAccount?.displayName" class="conv-account-label">
             {{ conv.zaloAccount.displayName }}
           </span>
         </template>
       </v-list-item>
 
-      <div v-if="!loading && conversations.length === 0" class="text-center pa-8 text-grey">
+      <div v-if="!loading && conversations.length === 0" class="text-center pa-8" style="color: var(--text-muted, #9CA3AF);">
         Chưa có cuộc trò chuyện nào
       </div>
     </v-list>
@@ -85,11 +126,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import type { Conversation } from '@/composables/use-chat';
 import { api } from '@/api/index';
 
-defineProps<{
+const props = defineProps<{
   conversations: Conversation[];
   selectedId: string | null;
   loading: boolean;
@@ -104,6 +145,17 @@ defineEmits<{
 
 const accountOptions = ref<{ text: string; value: string }[]>([]);
 const selectedAccountId = ref<string | null>(null);
+const sortBy = ref<'newest' | 'unread'>('newest');
+
+const sortLabel = computed(() => sortBy.value === 'newest' ? 'Newest' : 'Unread');
+
+const sortedConversations = computed(() => {
+  const list = [...props.conversations];
+  if (sortBy.value === 'unread') {
+    list.sort((a, b) => (b.unreadCount || 0) - (a.unreadCount || 0));
+  }
+  return list;
+});
 
 onMounted(async () => {
   try {
@@ -168,3 +220,90 @@ function formatTime(dateStr: string | null): string {
   return date.toLocaleDateString('vi-VN');
 }
 </script>
+
+<style scoped>
+.conversation-list {
+  background: #FFFFFF;
+}
+
+.search-field :deep(.v-field) {
+  background: #F5F7FB !important;
+  border-radius: 10px !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.conv-item {
+  border-bottom: 1px solid #F0F0F0;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.conv-item:hover {
+  background: #F8F9FA !important;
+}
+
+.conv-item-active {
+  background: #E3F2FD !important;
+  border-left: 3px solid #2196F3;
+}
+
+.conv-item-unread {
+  background: #FAFBFF;
+}
+
+.conv-name {
+  font-size: 0.9rem;
+  color: #1A1A2E;
+}
+
+.conv-time {
+  color: #9CA3AF;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.conv-preview {
+  color: #6B7280;
+  font-size: 0.8rem;
+}
+
+.conv-account-label {
+  font-size: 0.6rem;
+  color: #9CA3AF;
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Dark mode overrides */
+.v-theme--dark .conversation-list {
+  background: rgba(17, 34, 64, 0.3);
+}
+
+.v-theme--dark .conv-item {
+  border-bottom-color: rgba(66, 165, 245, 0.08);
+}
+
+.v-theme--dark .conv-item:hover {
+  background: rgba(66, 165, 245, 0.05) !important;
+}
+
+.v-theme--dark .conv-item-active {
+  background: rgba(66, 165, 245, 0.1) !important;
+  border-left-color: #42A5F5;
+}
+
+.v-theme--dark .conv-name {
+  color: #E6F1FF;
+}
+
+.v-theme--dark .conv-preview {
+  color: #8892a6;
+}
+
+.v-theme--dark .search-field :deep(.v-field) {
+  background: rgba(17, 34, 64, 0.5) !important;
+}
+</style>

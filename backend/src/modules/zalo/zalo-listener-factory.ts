@@ -137,11 +137,36 @@ export function attachZaloListener(ctx: ListenerContext): void {
     }
   });
 
-  listener.on('undo', async (data: any) => {
-    const msgId = data.data?.msgId || data.msgId;
-    if (msgId) {
-      await handleMessageUndo(accountId, String(msgId));
-      io?.emit('chat:deleted', { accountId, msgId: String(msgId) });
+  listener.on('undo', async (undoEvent: any) => {
+    try {
+      // zca-js Undo class: { data: TUndo, threadId, isSelf, isGroup }
+      // TUndo has: msgId, cliMsgId, realMsgId, content.globalMsgId, content.cliMsgId
+      // Some versions may emit raw arrays or different structures
+      const entries = Array.isArray(undoEvent) ? undoEvent : [undoEvent];
+
+      for (const entry of entries) {
+        // Try all known ID fields from zca-js Undo model
+        const d = entry.data || entry;
+        const msgId =
+          d.msgId ||
+          d.realMsgId ||
+          (d.globalMsgId && d.globalMsgId !== 0 ? String(d.globalMsgId) : null) ||
+          (d.globalDelMsgId && d.globalDelMsgId !== 0 ? String(d.globalDelMsgId) : null) ||
+          (d.cliMsgId ? String(d.cliMsgId) : null) ||
+          (d.clientDelMsgId ? String(d.clientDelMsgId) : null) ||
+          (d.content?.globalMsgId && d.content.globalMsgId !== 0 ? String(d.content.globalMsgId) : null) ||
+          (d.content?.cliMsgId ? String(d.content.cliMsgId) : null);
+
+        if (msgId) {
+          await handleMessageUndo(accountId, String(msgId));
+          io?.emit('chat:deleted', { accountId, msgId: String(msgId) });
+          logger.info(`[zalo:${accountId}] Undo message: ${msgId}`);
+        } else {
+          logger.warn(`[zalo:${accountId}] Undo event without recognizable msgId:`, JSON.stringify(entry));
+        }
+      }
+    } catch (err) {
+      logger.error(`[zalo:${accountId}] Undo handler error:`, err);
     }
   });
 
