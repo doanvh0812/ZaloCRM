@@ -234,11 +234,13 @@ export function useChat() {
     }
   }
 
-  async function sendMessage(content: string) {
+  async function sendMessage(content: string, quoteMsgId?: string) {
     if (!selectedConvId.value || !content.trim()) return;
     sendingMsg.value = true;
     try {
-      const res = await api.post(`/conversations/${selectedConvId.value}/messages`, { content });
+      const payload: { content: string; quoteMsgId?: string } = { content };
+      if (quoteMsgId) payload.quoteMsgId = quoteMsgId;
+      const res = await api.post(`/conversations/${selectedConvId.value}/messages`, payload);
       upsertMessage(messages.value, res.data);
     } catch (err) {
       console.error('Failed to send message:', err);
