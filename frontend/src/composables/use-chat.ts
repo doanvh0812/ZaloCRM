@@ -319,6 +319,14 @@ export function useChat() {
     }
   }
 
+  async function addReaction(messageId: string, icon: string) {
+    await api.post(`/messages/${messageId}/reactions`, { icon });
+  }
+
+  async function removeReaction(messageId: string) {
+    await api.delete(`/messages/${messageId}/reactions`);
+  }
+
   function initSocket() {
     socket = io({ transports: ['websocket', 'polling'] });
 
@@ -362,6 +370,8 @@ export function useChat() {
     sendFile,
     searchStickers,
     sendSticker,
+    addReaction,
+    removeReaction,
     initSocket,
     destroySocket,
   };

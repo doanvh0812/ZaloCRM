@@ -110,8 +110,8 @@
 
       <!-- Upload progress bar -->
       <v-progress-linear
-        v-if="sending && uploadProgress > 0"
-        :model-value="uploadProgress"
+        v-if="sending && (uploadProgress ?? 0) > 0"
+        :model-value="uploadProgress ?? 0"
         color="primary"
         height="3"
       />
