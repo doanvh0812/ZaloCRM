@@ -57,6 +57,7 @@ model User {
   zaloAccounts     ZaloAccount[]
   zaloAccess       ZaloAccountAccess[]
   assignedContacts Contact[]           @relation("AssignedContacts")
+  contactAccess    ContactAccess[]
   appointments     Appointment[]
   repliedMessages  Message[]           @relation("RepliedMessages")
   activityLogs     ActivityLog[]
@@ -125,10 +126,28 @@ model Contact {
 
   org           Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
   assignedUser  User?          @relation("AssignedContacts", fields: [assignedUserId], references: [id])
+  accessUsers   ContactAccess[]
   conversations Conversation[]
   appointments  Appointment[]
 
   @@map("contacts")
+}
+
+// ACL: which users can access (read+chat) which contacts
+// Used together with assignedUserId — assigned user is primary owner,
+// records in this table are secondary collaborators.
+model ContactAccess {
+  id         String   @id @default(uuid())
+  contactId  String   @map("contact_id")
+  userId     String   @map("user_id")
+  permission String   @default("chat") // chat (read+reply); future: read, admin
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, userId])
+  @@map("contact_access")
 }
 
 // A chat thread between a Zalo account and a contact (or group)
@@ -172,8 +191,25 @@ model Message {
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   repliedBy    User?        @relation("RepliedMessages", fields: [repliedByUserId], references: [id])
+  reactions    MessageReaction[]
 
   @@map("messages")
+}
+
+// Emoji reactions on messages (Heart, Like, Haha, Wow, Cry, Angry, etc.)
+// One row per reactor — same user can change their reaction by upsert.
+model MessageReaction {
+  id          String   @id @default(uuid())
+  messageId   String   @map("message_id")
+  reactorUid  String   @map("reactor_uid") // Zalo UID of the reactor (or self UID)
+  reactorName String?  @map("reactor_name")
+  icon        String   // raw Zalo reaction code, e.g. "/-heart", ":>", ":-(("
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, reactorUid])
+  @@map("message_reactions")
 }
 
 // Appointment scheduled for a contact

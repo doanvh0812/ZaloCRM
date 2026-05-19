@@ -36,7 +36,7 @@ const routes = [
     path: '/zalo-accounts',
     name: 'ZaloAccounts',
     component: () => import('@/views/ZaloAccountsView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, adminOnly: true },
   },
   {
     path: '/appointments',
@@ -48,19 +48,19 @@ const routes = [
     path: '/reports',
     name: 'Reports',
     component: () => import('@/views/ReportsView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, adminOnly: true },
   },
   {
     path: '/settings',
     name: 'Settings',
     component: () => import('@/views/SettingsView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, adminOnly: true },
   },
   {
     path: '/api-settings',
     name: 'ApiSettings',
     component: () => import('@/views/ApiSettingsView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, adminOnly: true },
   },
   {
     path: '/:pathMatch(.*)*',
@@ -95,6 +95,11 @@ router.beforeEach(async (to, _from, next) => {
         return next('/login');
       }
     }
+  }
+
+  // Admin-only routes: redirect members back to dashboard
+  if (to.meta.adminOnly && !authStore.isAdmin) {
+    return next('/');
   }
 
   next();

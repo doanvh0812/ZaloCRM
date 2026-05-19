@@ -55,6 +55,7 @@ export function useChat() {
   const loadingConvs = ref(false);
   const loadingMsgs = ref(false);
   const sendingMsg = ref(false);
+  const uploadProgress = ref(0); // 0-100 — used by attachment uploads
   const searchQuery = ref('');
   const accountFilter = ref<string | null>(null);
   let socket: Socket | null = null;
@@ -246,6 +247,53 @@ export function useChat() {
     }
   }
 
+  /**
+   * Upload an image file and send it as a message.
+   * Throws on error so the caller can show a snackbar.
+   */
+  async function sendImage(file: File) {
+    if (!selectedConvId.value) throw new Error('No conversation selected');
+    sendingMsg.value = true;
+    uploadProgress.value = 0;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await api.post(`/conversations/${selectedConvId.value}/upload-image`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (e) => {
+          if (e.total) uploadProgress.value = Math.round((e.loaded / e.total) * 100);
+        },
+      });
+      upsertMessage(messages.value, res.data);
+    } finally {
+      sendingMsg.value = false;
+      uploadProgress.value = 0;
+    }
+  }
+
+  /**
+   * Upload a generic file (document, pdf, etc.) and send it as a message.
+   */
+  async function sendFile(file: File) {
+    if (!selectedConvId.value) throw new Error('No conversation selected');
+    sendingMsg.value = true;
+    uploadProgress.value = 0;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await api.post(`/conversations/${selectedConvId.value}/upload-file`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (e) => {
+          if (e.total) uploadProgress.value = Math.round((e.loaded / e.total) * 100);
+        },
+      });
+      upsertMessage(messages.value, res.data);
+    } finally {
+      sendingMsg.value = false;
+      uploadProgress.value = 0;
+    }
+  }
+
   async function searchStickers(keyword: string) {
     if (!selectedConvId.value || !keyword.trim()) return [];
 
@@ -302,11 +350,14 @@ export function useChat() {
     loadingConvs,
     loadingMsgs,
     sendingMsg,
+    uploadProgress,
     searchQuery,
     accountFilter,
     fetchConversations,
     selectConversation,
     sendMessage,
+    sendImage,
+    sendFile,
     searchStickers,
     sendSticker,
     initSocket,

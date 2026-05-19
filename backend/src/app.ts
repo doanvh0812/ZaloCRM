@@ -8,8 +8,10 @@ import cors from '@fastify/cors';
 import fastifyJwt from '@fastify/jwt';
 import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
+import fastifyMultipart from '@fastify/multipart';
 import { Server } from 'socket.io';
 import path from 'node:path';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { Prisma } from '@prisma/client';
@@ -57,6 +59,22 @@ async function bootstrap() {
   await app.register(rateLimit, {
     max: 500,
     timeWindow: '1 minute',
+  });
+
+  // Register multipart for file uploads (chat attachments, etc.)
+  await app.register(fastifyMultipart, {
+    limits: {
+      fileSize: 50 * 1024 * 1024, // 50 MB max per file
+      files: 1,
+    },
+  });
+
+  // Ensure upload dir exists, then expose it as static files under /uploads
+  fs.mkdirSync(config.uploadDir, { recursive: true });
+  await app.register(fastifyStatic, {
+    root: config.uploadDir,
+    prefix: '/uploads/',
+    decorateReply: false,
   });
 
   // Serve compiled frontend assets in production

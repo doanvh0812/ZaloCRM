@@ -1,96 +1,117 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  --primary-blue: #2196F3;
-  --primary-light: #E3F2FD;
-  --bg-main: #F5F7FB;
+  /* Navy blue palette — primary */
+  --primary: #1E40AF;
+  --primary-hover: #1E3A8A;
+  --primary-light: #DBEAFE;
+  --primary-lighter: #EFF6FF;
+
+  /* Warm orange palette — accent / alerts / new badges */
+  --accent: #F97316;
+  --accent-hover: #EA580C;
+  --accent-light: #FED7AA;
+  --accent-lighter: #FFF7ED;
+
+  /* Neutrals */
+  --bg-main: #F8FAFC;
   --bg-white: #FFFFFF;
-  --text-primary: #1A1A2E;
-  --text-secondary: #6B7280;
-  --text-muted: #9CA3AF;
-  --border-light: #E5E7EB;
-  --border-lighter: #F0F0F0;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --bg-surface: #F1F5F9;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --border-light: #E2E8F0;
+  --border-lighter: #F1F5F9;
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 2px 8px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.08);
   --transition: cubic-bezier(0.4, 0, 0.2, 1);
-  /* Dark theme fallbacks */
-  --navy-deep: #0A192F;
-  --navy-light: #112240;
-  --card-glass: rgba(17, 34, 64, 0.7);
-  --border-glow: rgba(66, 165, 245, 0.1);
-  --liquid-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Status colors */
+  --success: #16A34A;
+  --warning: #F97316;
+  --danger: #DC2626;
+  --info: #0284C7;
+
+  /* Dark theme tokens */
+  --navy-deep: #0F172A;
+  --navy-light: #1E293B;
 }
 
 html, body {
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: 'Inter', 'Roboto', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color: var(--text-primary);
 }
 
-#app {
-  height: 100%;
-}
+#app { height: 100%; }
 
 /* ═══════════════════════════════════════════
-   LIGHT THEME (Default — Figma Chat Template)
+   LIGHT THEME — Navy + Orange (professional)
    ═══════════════════════════════════════════ */
 
-/* Cards — clean flat white */
+/* Cards */
 .v-theme--light .v-card {
   background: #FFFFFF !important;
   border: 1px solid var(--border-light) !important;
-  backdrop-filter: none;
   box-shadow: var(--shadow-sm) !important;
 }
 
-/* Scrollbar — subtle */
-::-webkit-scrollbar { width: 5px; }
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
-/* Navigation drawer — clean white sidebar */
+/* Navigation drawer — clean white sidebar with subtle navy accent */
 .v-theme--light .v-navigation-drawer {
   background: #FFFFFF !important;
   border-right: 1px solid var(--border-light) !important;
-  backdrop-filter: none !important;
 }
 
 /* App bar — clean white */
 .v-theme--light .v-app-bar {
   background: #FFFFFF !important;
   border-bottom: 1px solid var(--border-light) !important;
-  backdrop-filter: none !important;
 }
 
-/* List items — subtle hover */
+/* List items */
 .v-theme--light .v-list-item:hover {
-  background: #F5F7FB !important;
+  background: var(--bg-main) !important;
 }
 
 .v-theme--light .v-list-item--active {
-  background: var(--primary-light) !important;
-  border-left: 3px solid var(--primary-blue);
-  color: var(--primary-blue) !important;
+  background: var(--primary-lighter) !important;
+  color: var(--primary) !important;
 }
 
-/* Input fields — clean rounded */
+.v-theme--light .v-list-item--active .v-icon {
+  color: var(--primary) !important;
+}
+
+/* Inputs — focus ring uses primary navy */
 .v-field {
-  border-radius: 12px !important;
+  border-radius: 10px !important;
 }
 
 .v-theme--light .v-field--focused {
-  border-color: var(--primary-blue) !important;
-  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+  border-color: var(--primary) !important;
+}
+
+.v-theme--light .v-field--focused .v-field__outline {
+  --v-field-border-opacity: 1 !important;
+  color: var(--primary) !important;
 }
 
 /* Chat bubbles */
 .message-bubble {
-  animation: fade-slide-up 0.3s var(--transition);
+  animation: fade-slide-up 0.25s var(--transition);
 }
 
 @keyframes fade-slide-up {
@@ -98,25 +119,24 @@ html, body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Sent messages — blue bubble */
+/* Sent bubble — navy (was light blue) */
 .v-theme--light .message-bubble.bg-primary {
-  background: #2196F3 !important;
+  background: var(--primary) !important;
   color: #FFFFFF !important;
-  border-radius: 18px 18px 4px 18px !important;
-  box-shadow: 0 1px 3px rgba(33, 150, 243, 0.3);
+  border-radius: 16px 16px 4px 16px !important;
+  box-shadow: 0 1px 2px rgba(30, 64, 175, 0.2);
 }
 
 .v-theme--light .msg-time-self {
-  color: rgba(255, 255, 255, 0.7) !important;
+  color: rgba(255, 255, 255, 0.75) !important;
 }
 
-/* Received messages — light gray bubble */
+/* Received bubble */
 .v-theme--light .message-bubble:not(.bg-primary) {
-  background: #F0F2F5 !important;
+  background: var(--bg-surface) !important;
   border: none !important;
-  border-radius: 4px 18px 18px 18px !important;
+  border-radius: 4px 16px 16px 16px !important;
   color: var(--text-primary) !important;
-  box-shadow: none;
 }
 
 .v-theme--light .msg-time-contact {
@@ -127,25 +147,44 @@ html, body {
 .v-theme--light .chat-input-area {
   background: #FFFFFF !important;
   border-top: 1px solid var(--border-light);
-  backdrop-filter: none;
 }
 
-/* Chat messages area */
 .v-theme--light .chat-messages-area {
   background: #FFFFFF !important;
 }
 
-/* Buttons — clean, no aggressive hover */
+/* Buttons — flat with crisp hover */
 .v-theme--light .v-btn--variant-flat:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
 
+/* Primary buttons — navy with orange hover accent */
+.v-theme--light .v-btn--variant-flat.text-primary,
+.v-theme--light .v-btn[color="primary"].v-btn--variant-flat {
+  background: var(--primary) !important;
+  color: white !important;
+}
+
 /* Chips */
 .v-chip {
-  border-radius: 12px !important;
+  border-radius: 10px !important;
   font-weight: 500;
 }
+
+/* Accent chips/badges — orange */
+.v-chip.bg-accent,
+.v-chip[color="accent"] {
+  background: var(--accent) !important;
+  color: white !important;
+}
+
+/* Status badges — pipeline stages get orange for "new" */
+.status-new { background: var(--accent-lighter) !important; color: var(--accent-hover) !important; }
+.status-contacted { background: var(--primary-lighter) !important; color: var(--primary) !important; }
+.status-interested { background: #FEF3C7 !important; color: #B45309 !important; }
+.status-converted { background: #DCFCE7 !important; color: var(--success) !important; }
+.status-lost { background: #FEE2E2 !important; color: var(--danger) !important; }
 
 /* Data table */
 .v-theme--light .v-data-table {
@@ -158,218 +197,201 @@ html, body {
   border: 1px solid var(--border-light);
 }
 
+/* Table header — subtle navy tint */
+.v-theme--light .v-data-table thead {
+  background: var(--bg-main);
+}
+
+.v-theme--light .v-data-table thead th {
+  color: var(--text-secondary) !important;
+  font-weight: 600 !important;
+  font-size: 0.75rem !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 /* Dialog */
 .v-theme--light .v-overlay__content > .v-card {
   background: #FFFFFF !important;
-  backdrop-filter: none;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12) !important;
 }
 
-/* Tabs */
+/* Tabs — navy underline */
 .v-theme--light .v-tab--selected {
-  color: var(--primary-blue) !important;
+  color: var(--primary) !important;
 }
 
-/* Status dot */
+.v-theme--light .v-tabs-bar .v-slide-group__container .v-tab--selected::after {
+  background: var(--primary) !important;
+}
+
+/* Status dot — green pulse */
 .status-dot {
-  box-shadow: 0 0 6px rgba(76, 175, 80, 0.6);
+  box-shadow: 0 0 8px rgba(22, 163, 74, 0.5);
+  animation: pulse-dot 2s ease-in-out infinite;
 }
 
-/* Progress linear */
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 8px rgba(22, 163, 74, 0.5); }
+  50% { box-shadow: 0 0 14px rgba(22, 163, 74, 0.8); }
+}
+
+/* Progress linear — navy */
 .v-theme--light .v-progress-linear {
-  background: rgba(33, 150, 243, 0.1) !important;
+  background: var(--primary-lighter) !important;
 }
 
-/* Smooth transitions */
-.v-card, .v-list-item, .v-btn, .v-chip, .v-tab {
-  transition: all 0.2s var(--transition) !important;
+/* Unread badge in conversation list — orange */
+.v-badge .v-badge__badge {
+  background: var(--accent) !important;
+  color: white !important;
+  font-weight: 600;
 }
 
-/* Conversation list sidebar */
-.v-theme--light .conversation-list {
-  background: #FFFFFF !important;
+/* Avatar default — subtle navy tint */
+.v-theme--light .v-avatar {
+  border: 1.5px solid var(--bg-surface);
 }
 
-/* Conversation active item */
-.v-theme--light .conversation-active {
-  background: var(--primary-light) !important;
-  border: none !important;
-  border-left: 3px solid var(--primary-blue) !important;
+/* KPI cards — clean with colored accent strip */
+.kpi-card {
+  position: relative;
+  overflow: hidden;
 }
 
-/* Chat header */
-.v-theme--light .chat-header {
-  background: #FFFFFF !important;
-  border-bottom: 1px solid var(--border-light);
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--primary);
 }
 
-/* Chat container borders */
-.v-theme--light .chat-container > * {
-  border-color: var(--border-light);
+.kpi-card.kpi-accent::before {
+  background: var(--accent);
 }
 
-/* Text contrast */
-.v-theme--light .text-grey {
+.kpi-card.kpi-success::before {
+  background: var(--success);
+}
+
+/* Sidebar nav items — refined navy active state */
+.nav-item {
+  font-weight: 500;
+  font-size: 0.875rem;
   color: var(--text-secondary) !important;
+  transition: all 0.2s var(--transition);
 }
 
-.v-theme--light .v-list-item-subtitle {
-  color: var(--text-secondary) !important;
+.nav-item:hover {
+  background: var(--bg-main) !important;
 }
 
-.v-theme--light .text-grey-lighten-2 {
-  color: #D1D5DB !important;
+.nav-item-active {
+  background: linear-gradient(90deg, var(--primary-lighter) 0%, transparent 100%) !important;
+  color: var(--primary) !important;
+  font-weight: 600 !important;
+  position: relative;
 }
 
-/* Alert */
-.v-alert {
-  border-radius: 12px !important;
+.nav-item-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  bottom: 20%;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 0 3px 3px 0;
+}
+
+.nav-item-active .v-icon {
+  color: var(--primary) !important;
+}
+
+/* Brand logo container — gradient navy-to-orange ring on hover */
+.brand-logo {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+  transition: all 0.3s var(--transition);
+}
+
+.brand-logo:hover {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  transform: scale(1.05);
+}
+
+/* Conversation list item — accent left border on active */
+.v-theme--light .conv-item-active {
+  background: var(--primary-lighter) !important;
+  border-left: 3px solid var(--primary);
+}
+
+.v-theme--light .conv-item-unread {
+  background: var(--accent-lighter);
+}
+
+.v-theme--light .conv-item-unread .conv-name,
+.v-theme--light .conv-item-unread .conv-preview {
+  color: var(--text-primary) !important;
+  font-weight: 600;
 }
 
 /* ═══════════════════════════════════════════
-   DARK THEME
+   DARK THEME — Deep navy with orange accents
    ═══════════════════════════════════════════ */
 
-/* Liquid animated background */
-@keyframes flow-bg {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+.v-theme--dark {
+  background: var(--navy-deep) !important;
 }
 
-.liquid-bg {
-  background: linear-gradient(-45deg, #0A192F, #112240, #004d7a, #008fb3) !important;
-  background-size: 400% 400% !important;
-  animation: flow-bg 15s ease infinite;
-}
-
-/* Cards — glass effect dark */
 .v-theme--dark .v-card {
-  background: var(--card-glass) !important;
-  border: 1px solid var(--border-glow) !important;
-  backdrop-filter: blur(12px);
+  background: var(--navy-light) !important;
+  border: 1px solid rgba(148, 163, 184, 0.1) !important;
 }
 
-.v-theme--dark ::-webkit-scrollbar-thumb { background: rgba(66, 165, 245, 0.2); }
-.v-theme--dark ::-webkit-scrollbar-thumb:hover { background: rgba(66, 165, 245, 0.4); }
-
-/* Navigation drawer — dark glass */
-.v-theme--dark .v-navigation-drawer {
-  background: rgba(17, 34, 64, 0.5) !important;
-  backdrop-filter: blur(16px) !important;
-  border-right: 1px solid var(--border-glow) !important;
-}
-
-/* App bar — dark glass */
+.v-theme--dark .v-navigation-drawer,
 .v-theme--dark .v-app-bar {
-  background: rgba(10, 25, 47, 0.6) !important;
-  backdrop-filter: blur(16px) !important;
-  border-bottom: 1px solid var(--border-glow) !important;
-}
-
-/* List items hover — dark */
-.v-theme--dark .v-list-item:hover {
-  background: rgba(66, 165, 245, 0.05) !important;
+  background: var(--navy-light) !important;
+  border-color: rgba(148, 163, 184, 0.1) !important;
 }
 
 .v-theme--dark .v-list-item--active {
-  background: rgba(66, 165, 245, 0.08) !important;
-  border-left: 3px solid var(--primary-blue);
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: #60A5FA !important;
 }
 
-.v-theme--dark .v-field--focused {
-  border-color: var(--primary-blue) !important;
-  box-shadow: 0 0 12px rgba(66, 165, 245, 0.15);
-}
-
-/* Sent messages — dark theme */
 .v-theme--dark .message-bubble.bg-primary {
-  background: linear-gradient(135deg, #1E88E5, #1565C0) !important;
-  color: #FFFFFF !important;
-  border-radius: 18px 18px 4px 18px !important;
+  background: #3B82F6 !important;
+  border-radius: 16px 16px 4px 16px !important;
 }
 
-.v-theme--dark .msg-time-self {
-  color: rgba(255, 255, 255, 0.65) !important;
-}
-
-/* Received messages — dark theme */
 .v-theme--dark .message-bubble:not(.bg-primary) {
-  background: rgba(66, 165, 245, 0.08) !important;
-  border: 1px solid rgba(66, 165, 245, 0.15) !important;
-  border-radius: 4px 18px 18px 18px !important;
-  color: #E6F1FF !important;
+  background: #334155 !important;
+  color: #F1F5F9 !important;
+  border-radius: 4px 16px 16px 16px !important;
 }
 
-.v-theme--dark .msg-time-contact {
-  color: #6a7ea0 !important;
-}
-
-/* Chat input — dark */
-.v-theme--dark .chat-input-area {
-  border-top: 1px solid var(--border-glow);
-  background: rgba(17, 34, 64, 0.5);
-  backdrop-filter: blur(8px);
-}
-
-/* Chat messages — dark */
+.v-theme--dark .chat-input-area,
 .v-theme--dark .chat-messages-area {
-  background: rgba(10, 25, 47, 0.3);
+  background: var(--navy-light) !important;
 }
 
-/* Buttons — dark hover glow */
-.v-theme--dark .v-btn--variant-flat:hover {
-  box-shadow: 0 0 16px rgba(66, 165, 245, 0.2);
-  transform: translateY(-1px);
+.v-theme--dark .nav-item-active {
+  background: rgba(59, 130, 246, 0.12) !important;
+  color: #60A5FA !important;
 }
 
-/* Data table — dark */
-.v-theme--dark .v-data-table .v-table__wrapper {
-  background: var(--card-glass);
-  border-radius: 12px;
-  border: 1px solid var(--border-glow);
+.v-theme--dark .nav-item-active::before {
+  background: var(--accent);
 }
 
-/* Dialog — dark */
-.v-theme--dark .v-overlay__content > .v-card {
-  backdrop-filter: blur(20px);
+/* Headings — slightly bolder weight for navy professional feel */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
-/* Tabs — dark */
-.v-theme--dark .v-tab--selected {
-  color: var(--primary-blue) !important;
-}
-
-/* Dark conversation list */
-.v-theme--dark .conversation-list {
-  background: rgba(17, 34, 64, 0.3);
-}
-
-/* Dark conversation active */
-.v-theme--dark .conversation-active {
-  background: rgba(66, 165, 245, 0.05);
-  border: 1px solid rgba(66, 165, 245, 0.2) !important;
-}
-
-/* Dark chat header */
-.v-theme--dark .chat-header {
-  border-bottom: 1px solid var(--border-glow);
-  background: rgba(17, 34, 64, 0.3);
-}
-
-.v-theme--dark .chat-container > * {
-  border-color: var(--border-glow);
-}
-
-/* Dark progress linear */
-.v-theme--dark .v-progress-linear {
-  background: rgba(66, 165, 245, 0.1) !important;
-}
-
-.v-theme--dark .v-data-table {
-  background: transparent !important;
-}
-
-.v-theme--dark .status-dot {
-  box-shadow: 0 0 10px rgba(66, 165, 245, 0.8);
-}
+.text-h6 { font-weight: 600 !important; }
+.text-h5 { font-weight: 600 !important; }

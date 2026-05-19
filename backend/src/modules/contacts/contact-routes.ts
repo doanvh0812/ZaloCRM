@@ -38,6 +38,28 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
         ];
       }
 
+      // Members only see contacts they're assigned to (primary or secondary via ContactAccess)
+      if (user.role === 'member') {
+        const accessRows = await prisma.contactAccess.findMany({
+          where: { userId: user.id },
+          select: { contactId: true },
+        });
+        const accessibleIds = accessRows.map((a) => a.contactId);
+        // Wrap with AND so existing OR (search) keeps working
+        const memberFilter = {
+          OR: [
+            { assignedUserId: user.id },
+            { id: { in: accessibleIds } },
+          ],
+        };
+        if (where.OR) {
+          where.AND = [{ OR: where.OR }, memberFilter];
+          delete where.OR;
+        } else {
+          Object.assign(where, memberFilter);
+        }
+      }
+
       const pageNum = parseInt(page);
       const limitNum = parseInt(limit);
 
@@ -68,9 +90,22 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       const user = request.user!;
       const orgId = user.orgId;
 
+      // Build base filter — members only see their own contacts
+      const baseFilter: any = { orgId };
+      if (user.role === 'member') {
+        const accessRows = await prisma.contactAccess.findMany({
+          where: { userId: user.id },
+          select: { contactId: true },
+        });
+        baseFilter.OR = [
+          { assignedUserId: user.id },
+          { id: { in: accessRows.map((a) => a.contactId) } },
+        ];
+      }
+
       const pipeline = await prisma.contact.groupBy({
         by: ['status'],
-        where: { orgId, status: { not: null } },
+        where: { ...baseFilter, status: { not: null } },
         _count: true,
       });
 
@@ -80,7 +115,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
 
       await Promise.all(
         statuses.map(async (st) => {
-          const where: any = { orgId, status: st ?? null };
+          const where: any = { ...baseFilter, status: st ?? null };
           const contacts = await prisma.contact.findMany({
             where,
             select: {
@@ -119,8 +154,21 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       const user = request.user!;
       const { id } = request.params as { id: string };
 
+      // Build base filter — members can only see contacts they have access to
+      const where: any = { id, orgId: user.orgId };
+      if (user.role === 'member') {
+        const hasAccess = await prisma.contactAccess.findFirst({
+          where: { contactId: id, userId: user.id },
+          select: { id: true },
+        });
+        if (!hasAccess) {
+          // Must be primary assignee
+          where.assignedUserId = user.id;
+        }
+      }
+
       const contact = await prisma.contact.findFirst({
-        where: { id, orgId: user.orgId },
+        where,
         include: {
           assignedUser: { select: { id: true, fullName: true, email: true } },
           appointments: { orderBy: { appointmentDate: 'desc' }, take: 10 },

@@ -17,12 +17,47 @@ import { emitWebhook } from '../api/webhook-service.js';
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { Zalo } = require('zca-js') as {
-  Zalo: new (opts?: { logging?: boolean; selfListen?: boolean; checkUpdate?: boolean }) => any;
+  Zalo: new (opts?: {
+    logging?: boolean;
+    selfListen?: boolean;
+    checkUpdate?: boolean;
+    imageMetadataGetter?: (filePath: string) => Promise<{ width: number; height: number; size: number }>;
+  }) => any;
 };
+
+// sharp is used to read image dimensions before uploading to Zalo.
+// Loaded lazily so missing-install doesn't break non-image features.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+let sharp: ((input: string | Buffer) => any) | null = null;
+try {
+  sharp = require('sharp');
+} catch {
+  logger.warn('[zalo] sharp not installed — image attachments will fail. Run: npm install sharp');
+}
+
+async function imageMetadataGetter(filePath: string) {
+  const fs = await import('node:fs/promises');
+  const data = await fs.readFile(filePath);
+  if (!sharp) {
+    // Fallback — Zalo will likely reject, but at least don't crash
+    return { width: 0, height: 0, size: data.length };
+  }
+  const meta = await sharp(data).metadata();
+  return {
+    width: meta.width || 0,
+    height: meta.height || 0,
+    size: meta.size || data.length,
+  };
+}
 
 function createZaloClient() {
   // selfListen=true is required so listener receives messages sent from the phone/other devices.
-  return new Zalo({ logging: false, selfListen: true, checkUpdate: false });
+  return new Zalo({
+    logging: false,
+    selfListen: true,
+    checkUpdate: false,
+    imageMetadataGetter,
+  });
 }
 
 interface ZaloCredentials {

@@ -262,7 +262,12 @@ async function upsertContact(msg: IncomingMessage, orgId: string): Promise<strin
       });
       // Emit webhook for new contact created
       emitWebhook(orgId, 'contact.created', { contactId: groupContact.id, fullName: groupContact.fullName });
-    } else if (msg.groupName && groupContact.fullName !== msg.groupName) {
+    } else if (
+      msg.groupName
+      && msg.groupName !== 'Nhóm'
+      && (groupContact.fullName === 'Nhóm' || groupContact.fullName === 'Unknown' || groupContact.fullName === null || groupContact.fullName === '')
+    ) {
+      // Only auto-update group name if current name is missing/default.
       await prisma.contact.update({
         where: { id: groupContact.id },
         data: { fullName: msg.groupName },
@@ -291,7 +296,13 @@ async function upsertContact(msg: IncomingMessage, orgId: string): Promise<strin
     });
     // Emit webhook for new contact created
     emitWebhook(orgId, 'contact.created', { contactId: contact.id, fullName: contact.fullName });
-  } else if (msg.senderName && contact.fullName !== msg.senderName) {
+  } else if (
+    msg.senderName
+    && msg.senderName !== 'Unknown'
+    && (contact.fullName === 'Unknown' || contact.fullName === null || contact.fullName === '')
+  ) {
+    // Only auto-update name if current name is missing/Unknown.
+    // Don't overwrite names the user manually edited in the CRM.
     await prisma.contact.update({
       where: { id: contact.id },
       data: { fullName: msg.senderName },
@@ -311,10 +322,20 @@ async function findOrCreateConversation(
 
   const existing = await prisma.conversation.findFirst({
     where: { zaloAccountId: msg.accountId, externalThreadId },
-    select: { id: true },
+    select: { id: true, contactId: true },
   });
 
-  if (existing) return existing;
+  if (existing) {
+    // Backfill contact_id if it's missing — happens when first message
+    // came in before we could resolve a contact (rare race condition).
+    if (!existing.contactId && contactId) {
+      await prisma.conversation.update({
+        where: { id: existing.id },
+        data: { contactId },
+      });
+    }
+    return { id: existing.id };
+  }
 
   return prisma.conversation.create({
     data: {

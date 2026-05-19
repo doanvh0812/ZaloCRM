@@ -178,7 +178,7 @@
 
         <v-textarea
           v-model="inputText"
-          placeholder="Type your message here... (Ctrl+V để dán ảnh)"
+          placeholder="Type your message here..."
           variant="solo-filled"
           density="compact"
           hide-details
@@ -186,7 +186,6 @@
           rows="1"
           max-rows="3"
           @keydown.enter.exact.prevent="handleSend"
-          @paste="handlePaste"
           class="flex-grow-1 msg-input"
         />
         <v-btn
@@ -379,43 +378,6 @@ function confirmSendFile() {
 function formatFileSize(bytes: number): string {
   if (bytes > 1048576) return `${(bytes / 1048576).toFixed(1)} MB`;
   return `${Math.round(bytes / 1024)} KB`;
-}
-
-/**
- * Handle Ctrl+V paste — if clipboard contains an image, capture it as a
- * pending attachment instead of pasting raw text/garbage into the textarea.
- */
-function handlePaste(e: ClipboardEvent) {
-  const items = e.clipboardData?.items;
-  if (!items) return;
-
-  for (const item of items) {
-    if (item.kind === 'file' && item.type.startsWith('image/')) {
-      e.preventDefault();
-
-      const file = item.getAsFile();
-      if (!file) continue;
-
-      // Validate size (20 MB)
-      if (file.size > 20 * 1024 * 1024) {
-        syncSnack.value = { show: true, text: 'Ảnh quá lớn (tối đa 20 MB)', color: 'error' };
-        return;
-      }
-
-      // Give it a nice filename — clipboard images are usually named "image.png"
-      // or have no name at all. Tag with timestamp so user can tell them apart.
-      const ext = (file.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
-      const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      const namedFile = new File([file], `clipboard-${ts}.${ext}`, { type: file.type });
-
-      // Clear any previously-pending image to avoid orphan blob URL
-      if (pendingImagePreview.value) URL.revokeObjectURL(pendingImagePreview.value);
-
-      pendingImage.value = namedFile;
-      pendingImagePreview.value = URL.createObjectURL(namedFile);
-      return;
-    }
-  }
 }
 
 /** Extract image URL from JSON content */
