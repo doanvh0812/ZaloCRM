@@ -490,6 +490,11 @@ export async function chatRoutes(app: FastifyInstance) {
         );
       }
 
+      const reactor = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { fullName: true },
+      });
+
       // Upsert into DB — same user replacing their reaction
       const reaction = await prisma.messageReaction.upsert({
         where: { messageId_reactorUid: { messageId: msgId, reactorUid: selfUid } },
@@ -497,7 +502,7 @@ export async function chatRoutes(app: FastifyInstance) {
           id: randomUUID(),
           messageId: msgId,
           reactorUid: selfUid,
-          reactorName: user.fullName || 'Staff',
+          reactorName: reactor?.fullName || 'Staff',
           icon,
         },
         update: { icon, createdAt: new Date() },
